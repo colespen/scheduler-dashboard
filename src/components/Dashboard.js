@@ -7,11 +7,13 @@ import Panel from "./Panel";
 import classnames from "classnames";
 
 import {
- getTotalInterviews,
- getLeastPopularTimeSlot,
- getMostPopularDay,
- getInterviewsPerDay
+  getTotalInterviews,
+  getLeastPopularTimeSlot,
+  getMostPopularDay,
+  getInterviewsPerDay
 } from "helpers/selectors";
+
+import { setInterview } from "helpers/reducers";
 
 const data = [
   {
@@ -70,14 +72,31 @@ class Dashboard extends Component {
         interviewers: interviewers.data
       });
     });
-    this.socket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL)
-    // console.log(process.env);
+    ////    Connect WebSocket
+    this.socket = new WebSocket(process.env.REACT_APP_WEBSOCKET_URL);
+    ////    Listen on WebSocket Connection
+    this.socket.onmessage = event => {
+      const data = JSON.parse(event.data);
+
+      if (typeof data === "object" && data.type === "SET_INTERVIEW") {
+        this.setState(previousState =>
+          setInterview(previousState, data.id, data.interview)
+        );
+      }
+    };
+
   }
 
   componentDidUpdate(previousProps, previousState) {
     if (previousState.focused !== this.state.focused) {
       localStorage.setItem("focused", JSON.stringify(this.state.focused));
     }
+
+  }
+
+  componentWillUnmount() {
+    ////    Close WebSocket
+    this.socket.close(); 
   }
 
   render() {
@@ -87,22 +106,22 @@ class Dashboard extends Component {
     // if (this.state.loading) {
     //   return <Loading />;
     // }
-      const panels = (this.state.focused ? data.filter(panel =>
-        this.state.focused === panel.id) : data)
-        .map(panel => (
-          <Panel
+    const panels = (this.state.focused ? data.filter(panel =>
+      this.state.focused === panel.id) : data)
+      .map(panel => (
+        <Panel
           key={panel.id}
           label={panel.label}
           value={panel.getValue(this.state)}
           onSelect={() => this.selectPanel(panel.id)}
         />
       ));
-      
-      return (
-        this.state.loading ? <Loading /> :
+
+    return (
+      this.state.loading ? <Loading /> :
         <main className={dashboardClasses}>{panels}</main>
-        );
-      }
+    );
+  }
 }
 
 export default Dashboard;
